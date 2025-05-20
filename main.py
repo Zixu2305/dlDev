@@ -1,14 +1,19 @@
 import tensorflow as tf
 import numpy as np
-from tensorflow.keras.preprocessing import image
 import cv2
-import os
 import json
+
 IMGSIZE = 224
+
 with open('labels.json', 'r') as f:
     labels = json.load(f)
 
-model = tf.keras.models.load_model('best_model.keras')
+try:
+    model = tf.keras.models.load_model('checkpoints/model_epoch-15_val_loss-0.0425.keras')
+    print("Model loaded successfully.")
+except Exception as e:
+    print(f"Error loading model: {e}")
+    exit()
 
 cap = cv2.VideoCapture(0)
 
@@ -25,12 +30,16 @@ while True:
         print("Error: Could not read frame.")
         break
 
+    frame_height, frame_width, _ = frame.shape
+    # Ensure the ROI is within the frame dimensions
+    x_start = max(0, min(x_start, frame_width - width))
+    y_start = max(0, min(y_start, frame_height - height))
+    roi = frame[y_start:y_start + height, x_start:x_start + width]
+
     # Draw the rectangle for the region of interest (ROI) on the frame
     cv2.rectangle(frame, (x_start, y_start), (x_start + width, y_start + height), (0, 255, 0), 2)
 
-    # Extract the region of interest (ROI)
-    roi = frame[y_start:y_start + height, x_start:x_start + width]
-
+    # Preprocess the ROI for the model
     inputSize = (IMGSIZE, IMGSIZE)
     img = cv2.resize(roi, inputSize)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -47,7 +56,7 @@ while True:
                 1, (0, 255, 0), 2, cv2.LINE_AA)
 
     cv2.imshow("Frame", frame)
-    cv2.imshow('ROI', roi)
+    # cv2.imshow('ROI', roi)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
